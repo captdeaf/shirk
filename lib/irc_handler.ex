@@ -9,8 +9,8 @@ defmodule IrcHandler do
   end
 
   # Catch-all for messages you don't care about
-  def handle_info(msg, _state) do
-    send _state, {:irc, msg}
-    {:noreply, _state}
+  def handle_info(msg, parent) do
+    send parent, {:irc, msg}
+    {:noreply, parent}
   end
 end

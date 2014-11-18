@@ -1,4 +1,9 @@
 defmodule SHIRKER do
+  ### IRC state-changing methods are irc_(...)
+  def irc_(_c, _) do
+    _c
+  end
+
   def irc(_c, {:connected, server, port}) do
     send_mush _c, "You have connected to #{inspect server} #{inspect port}"
   end
@@ -51,6 +56,16 @@ defmodule SHIRKER do
     send_mush _c, "<#{channel}> #{from} #{message}"
   end
 
+  def irc(_c, msg) do
+    send_mush(_c, "From IRC: #{inspect msg}")
+  end
+
+  ### MUSH state-changing methods are mush_(...)
+  def mush_(_c, _, _) do
+    _c
+  end
+
+  # non-state-changing methods: mush(...)
   def mush(_c, "help", _args) do
     MUSOCK.send_file(_c.mush, "help.txt")
   end

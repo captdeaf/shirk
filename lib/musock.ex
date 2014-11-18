@@ -24,14 +24,20 @@ defmodule MUSOCK do
 
   def handle_events(c) do
     receive do
-      {:irc, msg} -> SHIRKER.irc(c, msg)
-      {:mush, line} -> handle_line c, line
+      {:irc, msg} -> c = handle_irc c, msg
+      {:mush, line} -> c = handle_mush c, line
     end
     handle_events c
   end
+  def handle_irc(c, msg) do
+    c = SHIRKER.irc_(c, msg)
+    SHIRKER.irc(c, msg)
+    c
+  end
 
-  def handle_line(c, line) do
+  def handle_mush(c, line) do
     x = Regex.named_captures(~r/^\s*(?<cmd>\S+)\s*(?<arg>.*?)[\r\n]*$/, line)
+    c = SHIRKER.mush_(c, x["cmd"], x["arg"])
     SHIRKER.mush(c, x["cmd"], x["arg"])
   end
 
