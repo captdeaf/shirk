@@ -1,0 +1,1 @@
+Syntax: connect host:port nick[:pass] [user] [name]

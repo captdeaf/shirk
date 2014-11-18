@@ -1,0 +1,12 @@
+Welcome to Shirk, the MUSH-like interface to IRC!
+
+Shirk is written in Elixir, as a learning language, blah blah.
+
+To connect to an IRC server, use:
+
+e.g:
+
+    connect irc.freenode.net:6667 gwb gwbush George W Bush
+
+Happy SHIRKing!
+
