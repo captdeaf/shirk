@@ -77,7 +77,7 @@ defmodule SHIRKER do
   end
 
   def mush(_c, "+s", _args) do
-    ExIrc.Client.privmsg _c.irc, :privmsg, "#sillyasdf", _args
+    ExIrc.Client.msg _c.irc, :privmsg, "#sillyasdf", _args
   end
 
   def send_mush(_c, text) do

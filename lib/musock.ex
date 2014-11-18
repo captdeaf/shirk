@@ -27,18 +27,21 @@ defmodule MUSOCK do
       {:irc, msg} -> c = handle_irc c, msg
       {:mush, line} -> c = handle_mush c, line
     end
+    IO.puts "Updated c:"
+    IO.inspect c
     handle_events c
   end
   def handle_irc(c, msg) do
     c = SHIRKER.irc_(c, msg)
-    SHIRKER.irc(c, msg)
+    spawn fn -> SHIRKER.irc(c, msg) end
     c
   end
 
   def handle_mush(c, line) do
     x = Regex.named_captures(~r/^\s*(?<cmd>\S+)\s*(?<arg>.*?)[\r\n]*$/, line)
     c = SHIRKER.mush_(c, x["cmd"], x["arg"])
-    SHIRKER.mush(c, x["cmd"], x["arg"])
+    spawn fn -> SHIRKER.mush(c, x["cmd"], x["arg"]) end
+    c
   end
 
   def loop_events(parent, client) do
@@ -101,5 +104,7 @@ defmodule MUSOCK do
     ExIrc.Client.logon irc, opts.pass, opts.nick, opts.user, opts.name
 
     send_line client, "Finished with attempt"
+
+    irc
   end
 end
