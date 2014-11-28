@@ -16,7 +16,13 @@ defmodule MUSOCK do
     spawn_link fn -> loop_events parent, client end
 
     {:ok, %{mtime: hmt}} = File.stat('lib/handlers.ex')
-    c = %{irc: irc, mush: client, parent: self(), handlermtime: hmt}
+    c = %{
+      irc: irc,
+      mush: client,
+      parent: self(),
+      handlermtime: hmt,
+      nick: data.nick
+    }
     handle_events c
 
     send_line client, "Goodbye, I hope you enjoyed using SHIRK!"
@@ -43,10 +49,9 @@ defmodule MUSOCK do
     # Then handle it.
     nc = try do
       case what do
-        {:irc, msg} -> c = handle_irc c, msg
-        {:mush, line} -> c = handle_mush c, line
+        {:irc, msg} -> handle_irc c, msg
+        {:mush, line} -> handle_mush c, line
       end
-      c
     rescue
       e -> IO.inspect e
     end
@@ -80,10 +85,19 @@ defmodule MUSOCK do
   end
 
   def handle_mush(c, line) do
-    x = Regex.named_captures(~r/^\s*(?<cmd>\S+)\s*(?<arg>.*?)[\r\n]*$/, line)
-    c = Handlers.mush_(c, x["cmd"], x["arg"])
-    spawn fn -> Handlers.mush(c, x["cmd"], x["arg"]) end
+    pe = parse_mush(line)
+    c = Handlers.mush_(c, pe)
+    spawn fn -> Handlers.mush(c, pe) end
     c
+  end
+
+  def parse_mush(line) do
+    pe = Regex.named_captures(~r/^\s*(?<line>(?<cmd>\S+)\s*(?<arg>.*?))[\r\n]*$/, line)
+    %{
+      cmd: pe["cmd"],
+      args: pe["arg"],
+      line: pe["line"]
+    }
   end
 
   def loop_events(parent, client) do

@@ -12,20 +12,18 @@ defmodule SHIRK do
   end
 
   def start(_type, _args) do
-    port = 4040
     IO.inspect System.argv()
     if length(System.argv) == 1 do
       [portarg] = System.argv
       if {_port, []} = :string.to_integer(to_char_list(portarg)) do
         port = _port
+        SHIRK.accept(port)
       else
         IO.puts "Unable to convert port"
       end
     else
-      IO.puts "No port given, assuming #{port}"
+      IO.puts "No port given, not running."
     end
-
-    SHIRK.accept(port)
-    {:ok, true}
+    {:ok, :true}
   end
 end
