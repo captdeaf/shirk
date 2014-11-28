@@ -615,7 +615,7 @@ defmodule ExIrc.Client do
     {:noreply, new_state}
   end
   # Called when we receive a PING
-  def handle_data(%IrcMessage{:cmd => "PING"} = msg, %ClientState{:autoping => true} = state) do
+  def handle_data(%IrcMessage{:cmd => "PING"} = msg, state) do
     if state.debug?, do: debug "RECEIVED A PING!"
     case msg do
       %IrcMessage{:args => [from]} ->
