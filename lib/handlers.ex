@@ -1,63 +1,58 @@
-defmodule SHIRKER do
+defmodule Handlers do
   ### IRC state-changing methods are irc_(...)
+  # Modifies state: Adds the joined channel to the channel list.
+  def irc_(_c, %IrcMessage{cmd: "JOIN", args: [channel], host: _host, nick: nick}) do
+    channel = chomp channel
+    if nick == _c[:nick] do
+      if _c[:channels] do
+        %{_c | channels: _c[:channels] ++ [channel]}
+      else
+        Map.merge _c, %{channels: [channel]}
+      end
+    else
+      _c
+    end
+  end
+
+  # and catchall.
   def irc_(_c, _) do
     _c
   end
 
-  def irc(_c, {:connected, server, port}) do
-    send_mush _c, "You have connected to #{inspect server} #{inspect port}"
-  end
-  def irc(_c, :logged_in) do
-    send_mush _c, "You are logged in"
-  end
-  def irc(_c, :disconnected) do
-    send_mush _c, "You have been disconnected."
-  end
-  def irc(_c, {:joined, channel}) do 
-    send_mush _c, "You have joined #{channel}"
-  end
-  def irc(_c, {:joined, channel, user}) do
-    send_mush _c, "<#{channel}> #{user} has connected"
-  end
-  def irc(_c, {:topic_changed, channel, topic}) do
-    send_mush _c, "<#{channel}> New topic: #{topic}"
-  end
-  def irc(_c, {:nick_changed, nick}) do
-    send_mush _c, "You are now known as '#{nick}'"
-  end
-  def irc(_c, {:nick_changed, old_nick, new_nick}) do
-    send_mush _c, "#{old_nick} is now known as '#{new_nick}'"
-  end
-  def irc(_c, {:parted, channel}) do
-    send_mush _c, "You have left #{channel}"
-  end
-  def irc(_c, {:parted, channel, nick}) do
-    send_mush _c, "<#{channel}> #{nick} has parted"
-  end
-  def irc(_c, {:invited, by, channel}) do
-    send_mush _c, "You are invited to #{channel} by #{by}"
-  end
-  def irc(_c, {:kicked, by, channel}) do
-    send_mush _c, "You have been kicked from #{channel} by #{by}"
-  end
-  def irc(_c, {:kicked, nick, by, channel}) do
-    send_mush _c, "<#{channel}> #{nick} has been kicked by #{by}"
-  end
-  def irc(_c, {:received, message, from}) do
-    send_mush _c, "#{from} pages: #{message}"
-  end
-  def irc(_c, {:received, message, from, channel}) do
-    send_mush _c, "<#{channel}> #{from} says, \"#{message}\""
-  end
-  def irc(_c, {:mentioned, message, from, channel}) do
-    send_mush _c, "<#{channel}> #{from} says, \"#{message}\""
-  end
-  def irc(_c, {:me, message, from, channel}) do
-    send_mush _c, "<#{channel}> #{from} #{message}"
+  # Flat-out server messages, including MOTD
+  def irc(_c, %IrcMessage{cmd: "NOTICE", args: ["*", msg], ctcp: false, server: srv}) do
+    send_mush _c, "#{srv}-> #{msg}"
   end
 
+  def irc(_c, %IrcMessage{cmd: c, args: args, ctcp: false, server: srv}) when is_number(c) do
+    send_mush _c, "#{srv}: #{Enum.reduce(Enum.map(tl(args),&to_string/1),&<>/2)}"
+  end
+
+  def irc(_c, %IrcMessage{cmd: "MODE", args: [who, mode]}) do
+    send_mush _c, "#{who} sets mode #{mode}"
+  end
+
+  def irc(_c, %IrcMessage{cmd: "JOIN", args: [channel], host: host, nick: nick, user: user}) do
+    channel = chomp channel
+    send_mush _c, "<#{channel}> #{nick} has joined (#{user}@#{host})"
+  end
+
+  def irc(_c, %IrcMessage{cmd: "PRIVMSG", args: [chan, text], nick: nick}) do
+    if chan == _c[:nick] do
+      send_mush _c, "#{nick} pages: #{text}"
+    else
+      send_mush _c, "<#{chan}> #{nick} says, \"#{text}\""
+    end
+  end
+
+  # Catch-all for the rest.
   def irc(_c, msg) do
-    send_mush(_c, "From IRC: #{inspect msg}")
+    if %{cmd: cmd} = msg do
+      send_mush _c, "Unhandled #{cmd}: #{inspect msg}"
+    else
+      send_mush _c, "Unhandled without a command?"
+      send_mush _c, inspect msg
+    end
   end
 
   ### MUSH state-changing methods are mush_(...)
@@ -70,6 +65,11 @@ defmodule SHIRKER do
     MUSOCK.send_file(_c.mush, "help.txt")
   end
 
+  # non-state-changing methods: mush(...)
+  def mush(_c, "echo", _args) do
+    send_mush _c, inspect _args
+  end
+
   def mush(_c, "@join", _args) do
     IO.puts("JOIN?")
     IO.puts(inspect _args)
@@ -80,7 +80,19 @@ defmodule SHIRKER do
     ExIrc.Client.msg _c.irc, :privmsg, "#sillyasdf", _args
   end
 
+  def mush(_c, cmd, _args) do
+    send_mush _c, "Unknown command '#{cmd}'. (Type 'help' for help)"
+  end
+
   def send_mush(_c, text) do
     MUSOCK.send_line _c.mush, text
+  end
+
+  def chomp(str) do
+    str = String.rstrip str, ?\n
+    str = String.rstrip str, ?\r
+    str = String.rstrip str, ?\n
+    str = String.rstrip str, ?\r
+    str
   end
 end

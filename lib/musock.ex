@@ -15,7 +15,8 @@ defmodule MUSOCK do
     parent = self()
     spawn_link fn -> loop_events parent, client end
 
-    c = %{irc: irc, mush: client, parent: self()}
+    {:ok, %{mtime: hmt}} = File.stat('lib/handlers.ex')
+    c = %{irc: irc, mush: client, parent: self(), handlermtime: hmt}
     handle_events c
 
     send_line client, "Goodbye, I hope you enjoyed using SHIRK!"
@@ -24,23 +25,64 @@ defmodule MUSOCK do
 
   def handle_events(c) do
     receive do
-      {:irc, msg} -> c = handle_irc c, msg
-      {:mush, line} -> c = handle_mush c, line
+      {:irc, msg} -> what = {:irc, msg}
+      {:mush, line} -> what = {:mush, line}
     end
-    IO.puts "Updated c:"
-    IO.inspect c
+
+    # First, reload handlers if necessary.
+    nc = try do
+      reload_handlers c
+    rescue
+      e -> IO.inspect e
+    end
+
+    if %{irc: _, mush: _} = nc do
+      c = nc
+    end
+
+    # Then handle it.
+    nc = try do
+      case what do
+        {:irc, msg} -> c = handle_irc c, msg
+        {:mush, line} -> c = handle_mush c, line
+      end
+      c
+    rescue
+      e -> IO.inspect e
+    end
+
+    if %{irc: _, mush: _} = nc do
+      c = nc
+    end
     handle_events c
   end
+
+  def reload_handlers(c) do
+    {:ok, %{mtime: hmt}} = File.stat('lib/handlers.ex')
+    if hmt > c.handlermtime do
+      IO.puts "Reloading handlers: #{inspect hmt} > #{inspect c.handlermtime}."
+      spawn fn -> Code.load_file("lib/handlers.ex") end
+      # TODO: a better way to wait until load file is complete.
+      :timer.sleep 500
+
+      c = %{c | handlermtime: hmt}
+      IO.inspect c
+      c
+    else
+      c
+    end
+  end
+
   def handle_irc(c, msg) do
-    c = SHIRKER.irc_(c, msg)
-    spawn fn -> SHIRKER.irc(c, msg) end
+    c = Handlers.irc_(c, msg)
+    spawn fn -> Handlers.irc(c, msg) end
     c
   end
 
   def handle_mush(c, line) do
     x = Regex.named_captures(~r/^\s*(?<cmd>\S+)\s*(?<arg>.*?)[\r\n]*$/, line)
-    c = SHIRKER.mush_(c, x["cmd"], x["arg"])
-    spawn fn -> SHIRKER.mush(c, x["cmd"], x["arg"]) end
+    c = Handlers.mush_(c, x["cmd"], x["arg"])
+    spawn fn -> Handlers.mush(c, x["cmd"], x["arg"]) end
     c
   end
 

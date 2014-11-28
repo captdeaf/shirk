@@ -10,6 +10,22 @@ defmodule SHIRK do
     spawn fn -> MUSOCK.serve(client) end
     loop_acceptor(socket)
   end
-end
 
-# SHIRK.accept(4041)
+  def start(_type, _args) do
+    port = 4040
+    IO.inspect System.argv()
+    if length(System.argv) == 1 do
+      [portarg] = System.argv
+      if {_port, []} = :string.to_integer(to_char_list(portarg)) do
+        port = _port
+      else
+        IO.puts "Unable to convert port"
+      end
+    else
+      IO.puts "No port given, assuming #{port}"
+    end
+
+    SHIRK.accept(port)
+    {:ok, true}
+  end
+end

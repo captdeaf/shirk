@@ -8,9 +8,21 @@ defmodule IrcHandler do
     {:ok, arg}
   end
 
-  # Catch-all for messages you don't care about
-  def handle_info(msg, parent) do
+  # Catch all IRC messages and pass it off to the handler.
+  def handle_info({:data, msg}, parent) do
+    IO.puts("IRC: " <> inspect msg)
+    if %{cmd: c} = msg do
+      if c =~ ~r/^\d+$/ do
+        {cid, []} = :string.to_integer(to_char_list(c))
+        msg = %{msg | cmd: cid}
+      end
+    end
     send parent, {:irc, msg}
+    {:noreply, parent}
+  end
+
+  # We ignore exirc's own handler calls other than the above.
+  def handle_info(_msg, parent) do
     {:noreply, parent}
   end
 end

@@ -2,8 +2,10 @@ defmodule SHIRK.Mixfile do
   use Mix.Project
 
   def project do
+    {mgs,s,_} = :os.timestamp
+    now = mgs * 1000000 + s
     [app: :shirk,
-     version: "0.0.1",
+     version: "0.0.#{now}",
      elixir: "~> 1.0",
      deps: deps]
   end
@@ -12,7 +14,8 @@ defmodule SHIRK.Mixfile do
   #
   # Type `mix help compile.app` for more information
   def application do
-    [applications: [:logger, :exirc]]
+    [applications: [:logger, :exirc],
+     mod: {SHIRK, []}]
   end
 
   # Dependencies can be Hex packages:
