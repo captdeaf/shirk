@@ -64,9 +64,23 @@ defmodule Handlers do
     send_mush _c, "#{who} sets mode #{mode}"
   end
 
-  def irc(_c, %IrcMessage{cmd: "JOIN", args: [channel], host: host, nick: nick, user: user}) do
+  def irc(_c, %IrcMessage{cmd: "PING", args: args, nick: nick}) do
+    if length(args) == 2 do
+      send_mush _c, "#{nick} pinged you!"
+    end
+  end
+
+  def irc(_c, %IrcMessage{cmd: "JOIN", args: [channel], host: _host, nick: nick}) do
     channel = chomp channel
-    send_mush _c, "<#{channel}> #{nick} has joined (#{user}@#{host})"
+    send_mush(_c, "<#{channel}> - #{nick} has joined.")
+  end
+
+  def irc(_c, %IrcMessage{cmd: "PART", args: args, host: _host, nick: nick}) do
+    channel = chomp hd args
+    rest = tl args
+    if length(rest) > 0 do
+      send_mush(_c, "<#{channel}> - #{nick} has left. (#{hd rest})")
+    end
   end
 
   def irc(_c, %IrcMessage{cmd: "PRIVMSG", args: [chan, text], nick: nick}) do
@@ -74,6 +88,14 @@ defmodule Handlers do
       send_mush _c, "#{nick} pages: #{text}"
     else
       send_mush _c, "<#{chan}> #{nick} says, \"#{text}\""
+    end
+  end
+
+  def irc(_c, %IrcMessage{cmd: "ACTION", args: [chan, text], nick: nick}) do
+    if chan == _c[:nick] do
+      send_mush _c, "From afar, #{nick} #{text}"
+    else
+      send_mush _c, "<#{chan}> #{nick} #{text}"
     end
   end
 
